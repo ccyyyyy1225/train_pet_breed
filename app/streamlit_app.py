@@ -9,8 +9,8 @@ import numpy as np
 import streamlit as st
 from PIL import Image
 import torch
+from app.utils.modeling import load_state_dict_model
 
-from utils.modeling import load_torchscript_model
 from utils.preprocess import preprocess_image
 from utils.gradcam import GradCAM, overlay_cam_on_image
 
@@ -20,7 +20,7 @@ from utils.gradcam import GradCAM, overlay_cam_on_image
 st.set_page_config(page_title="Pet Breed Classifier", layout="wide")
 
 BASE_DIR = os.path.dirname(__file__)
-MODEL_PATH = os.path.join(BASE_DIR, "model", "model_mobilenetv2.pt")
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model_mobilenetv2.pth")
 CLASS_PATH = os.path.join(BASE_DIR, "model", "class_names.json")
 
 st.title("寵物品種辨識 Demo（Transfer Learning / ResNet18）")
@@ -55,9 +55,8 @@ if not os.path.exists(MODEL_PATH) or not os.path.exists(CLASS_PATH):
 # -------------------------
 @st.cache_resource
 def load_assets():
-    model = load_torchscript_model(MODEL_PATH, device=device)
-    with open(CLASS_PATH, "r", encoding="utf-8") as f:
-        class_names = json.load(f)
+    class_names = json.load(open(CLASS_PATH, "r", encoding="utf-8"))
+    model = load_state_dict_model(MODEL_PATH, class_count=len(class_names), device="cpu")
     return model, class_names
 
 model, class_names = load_assets()
@@ -135,7 +134,8 @@ if use_gradcam:
     st.caption("顯示模型關注的影像區域（例如耳朵、臉部、毛色等）。若環境不支援 hook 會自動跳過。")
 
     try:
-        cam_engine = GradCAM(model, target_layer_name="layer4")
+        cam_engine = GradCAM(model, target_layer=model.features[-1])
+
         # 需要可求梯度的輸入
         x_gc = preprocess_image(pil_img, device=device, img_size=224)
         x_gc = x_gc.clone().requires_grad_(True)
