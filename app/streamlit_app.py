@@ -1,4 +1,9 @@
 import os
+import sys
+
+# 讓 Streamlit Cloud 能找到 app/utils
+sys.path.append(os.path.dirname(__file__))
+
 import json
 import numpy as np
 import streamlit as st
