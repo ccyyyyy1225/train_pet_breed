@@ -1,48 +1,99 @@
-# 寵物品種辨識（Pet Breed Classification）— Transfer Learning + Streamlit Demo
+# Pet Breed Classifier — 小樣本寵物品種辨識（MobileNetV2 + Streamlit）
 
-本專案示範如何使用 **預訓練 CNN（ResNet18）** 進行 **小樣本寵物品種辨識**，並延伸成 **Streamlit Web App**：
-- 資料夾每類只有 5 張也能做（以「資料切分 + 強資料增強 + Transfer Learning」完成可展示的 Demo）
-- 產出：Learning Curves、Confusion Matrix、Classification Report、Top-K 預測、（可選）Grad-CAM 可視化
-- 部署：GitHub + Streamlit Cloud（streamlit.app）
+本專案示範一個完整的深度學習影像分類流程：使用 **Transfer Learning（MobileNetV2 / ImageNet 預訓練）** 在 **小樣本資料（每類 5 張）** 的情境下完成寵物品種辨識，並延伸為可部署的 **Streamlit Web App**。
+
+你可以上傳寵物照片，系統會輸出：
+
+* Top-K 預測結果與信心分數
+* Grad-CAM 可解釋性視覺化（顯示模型關注區域）
+* 訓練端可產生 Learning Curves、Confusion Matrix、Classification Report
 
 ---
 
-## 1) 你目前的資料格式（OK）
-請把資料放成：
+## 專案特色
+
+* **小樣本可 demo**：每個品種只需少量圖片（例如每類 5 張）即可完成展示版模型
+* **Transfer Learning**：採用 MobileNetV2 預訓練權重，避免從零訓練造成嚴重 overfitting
+* **部署友善**：模型檔案小於 GitHub 25MB 限制，適合直接部署到 Streamlit Cloud
+* **可解釋性**：提供 Grad-CAM（建議使用 `.pth state_dict` 版本以穩定支援 hook）
+
+---
+
+## 資料夾結構
+
+```
+Pet-Breed-Classifier/
+├── dataset/                     # 原始資料：每類一個資料夾（每類約 5 張）
+├── data_split/                  # 自動切分後資料：train/val/test
+├── notebooks/
+│   └── train_pet_breed.ipynb    # Colab/Notebook：切分、訓練、評估、匯出模型
+├── app/
+│   ├── streamlit_app.py         # Streamlit Web App
+│   ├── model/
+│   │   ├── model_mobilenetv2.pth        
+│   │   ├── model_mobilenetv2.pt         
+│   │   └── class_names.json
+│   └── utils/
+│       ├── modeling.py
+│       ├── preprocess.py
+│       └── gradcam.py
+├── REPORT_ABSTRACT.txt          # 300 字英文摘要
+├── agent_dev_log.md             # Agent 開發過程對話紀錄
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## 1) 準備資料（dataset）
+
+請將圖片放入 `dataset/`，以資料夾名稱作為類別名稱，例如：
+
 ```
 dataset/
-  American Shorthair/   (5 images)
-  British Shorthair/    (5 images)
-  Golden Retriever/     (5 images)
-  Husky/                (5 images)
-  Labrador/             (5 images)
-  Maine Coon/           (5 images)
-  Ragdoll/              (5 images)
-  Shiba Inu/            (5 images)
+  American Shorthair/
+    img1.jpg
+    img2.jpg
+    ...
+  Shiba Inu/
+    shiba1.jpg
+    ...
 ```
 
-本專案會自動切成：
-- train：3 張/類
-- val：1 張/類
-- test：1 張/類
+建議每類至少 5 張（本專案預設切分 3/1/1）。
 
 ---
 
-## 2) Colab / Notebook 訓練（建議）
-請開啟 `notebooks/train_pet_breed.ipynb`，照 cell 順序執行。完成後會輸出：
-- `exports/model_resnet18.pt`（TorchScript，可直接給 Streamlit 用）
-- `exports/class_names.json`
+## 2) 訓練與匯出模型（Colab / Notebook）
 
-接著把這兩個檔案複製到：
+開啟並執行：
+
+* `notebooks/train_pet_breed.ipynb`
+
+Notebook 會完成：
+
+1. 將 `dataset/` 自動切分為 `data_split/train|val|test`（每類 3/1/1）
+2. 使用 MobileNetV2 進行 Transfer Learning 訓練
+3. 產生：
+
+   * Learning Curves（Loss/Accuracy）
+   * Confusion Matrix
+   * Classification Report
+4. 匯出模型與類別檔案到 `exports/`
+
+### 匯出檔案（Notebook 產生）
+
 ```
-app/model/model_resnet18.pt
-app/model/class_names.json
+exports/
+  model_mobilenetv2.pth
+  class_names.json
+  (可選) model_mobilenetv2.pt
 ```
 
----
+## 3) 本機執行 Streamlit
 
-## 3) 本機測試 Streamlit
-在專案根目錄執行：
+在專案根目錄安裝套件並啟動：
+
 ```bash
 pip install -r requirements.txt
 streamlit run app/streamlit_app.py
@@ -51,39 +102,32 @@ streamlit run app/streamlit_app.py
 ---
 
 ## 4) 部署到 Streamlit Cloud（streamlit.app）
-1. 把整個專案 push 到 GitHub
-2. 到 Streamlit Cloud 連 GitHub repo，設定：
-   - Main file path：`app/streamlit_app.py`
-3. 若部署時沒找到模型檔，請確認 repo 內有：
-   - `app/model/model_resnet18.pt`
-   - `app/model/class_names.json`
+
+1. 將整個 repo push 到 GitHub（請確認模型檔 `< 25MB`）
+2. 到 Streamlit Cloud 新增 App：
+
+   * **Main file path**：`app/streamlit_app.py`
+
+### 部署前必檢查
+
+請確保 GitHub repo 內存在：
+
+* `app/model/model_mobilenetv2.pth`
+* `app/model/class_names.json`
+* `requirements.txt`
 
 ---
 
-## 5) 300 字英文摘要（可交作業）
-見 `REPORT_ABSTRACT.txt`
+## 6) Grad-CAM 說明
+
+* **TorchScript (`.pt`) 版本** 在部分雲端環境可能無法使用 hook，因此 Grad-CAM 可能產生失敗。
+* 建議使用 **state_dict (`.pth`) 版本**：Streamlit 端重新 build MobileNetV2 再載入權重，Grad-CAM 最穩定。
 
 ---
 
-## 6) Agent 開發過程對話紀錄
-見 `agent_dev_log.md`
+## 7) 作業繳交對應
 
----
+* **300 字摘要**：`REPORT_ABSTRACT.txt`
+* **Agent 對話紀錄**：`agent_dev_log.md`
+* **GitHub + Streamlit.app**：本 repo + Streamlit Cloud 連結
 
-## 7) 常見問題
-### Q1：每類只有 5 張會不會太少？
-會偏少，所以這個專案採用：
-- 預訓練 ResNet18（ImageNet）
-- 強資料增強（隨機裁切、翻轉、亮度對比、輕微旋轉）
-- 凍結 backbone、只訓練分類 head（再視情況微調最後一個 block）
-來做 **可展示的「小樣本 demo」**。正式研究要更多資料。
-
-### Q2：資料夾名稱有空白（例如 Shiba Inu）會有問題嗎？
-不會。程式會以資料夾名稱作為類別名稱；Streamlit 顯示時也用原名稱。
-
----
-
-## 8) 你可以在報告中寫的延伸亮點（建議）
-- Top-3 預測與信心分數可視化
-- Grad-CAM：模型到底在看耳朵/臉/毛色哪裡判斷
-- 小樣本限制與資料增強策略的效果比較
