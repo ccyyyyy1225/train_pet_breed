@@ -4,42 +4,22 @@ import numpy as np
 import cv2
 
 class GradCAM:
-    """Minimal Grad-CAM for ResNet-like models.
-    Works with TorchScript model ONLY if it preserves module names; therefore, this file is optional.
-    For maximum compatibility in Streamlit, you may disable Grad-CAM if it fails.
-    """
-    def __init__(self, model, target_layer_name="layer4"):
+    def __init__(self, model, target_layer):
         self.model = model
-        self.target_layer_name = target_layer_name
+        self.target_layer = target_layer
         self.gradients = None
         self.activations = None
-        self._register_hooks()
 
-    def _find_layer(self):
-        # TorchScript may not expose named_modules the same way; this may fail.
-        for name, module in self.model.named_modules():
-            if name == self.target_layer_name:
-                return module
-        return None
+        self.target_layer.register_forward_hook(self._forward_hook)
+        self.target_layer.register_full_backward_hook(self._backward_hook)
 
-    def _register_hooks(self):
-        layer = self._find_layer()
-        if layer is None:
-            return
+    def _forward_hook(self, module, inp, out):
+        self.activations = out
 
-        def forward_hook(module, input, output):
-            self.activations = output.detach()
-
-        def backward_hook(module, grad_in, grad_out):
-            self.gradients = grad_out[0].detach()
-
-        layer.register_forward_hook(forward_hook)
-        layer.register_full_backward_hook(backward_hook)
+    def _backward_hook(self, module, grad_in, grad_out):
+        self.gradients = grad_out[0]
 
     def generate(self, x, class_idx: int):
-        if self._find_layer() is None:
-            return None
-
         self.model.zero_grad(set_to_none=True)
         logits = self.model(x)
         score = logits[:, class_idx].sum()
@@ -48,9 +28,11 @@ class GradCAM:
         if self.gradients is None or self.activations is None:
             return None
 
-        # weights: GAP over gradients
-        weights = self.gradients.mean(dim=(2,3), keepdim=True)
-        cam = (weights * self.activations).sum(dim=1, keepdim=True)
+        grads = self.gradients.detach()
+        acts  = self.activations.detach()
+
+        weights = grads.mean(dim=(2, 3), keepdim=True)  # GAP
+        cam = (weights * acts).sum(dim=1, keepdim=True)
         cam = F.relu(cam)
 
         cam = cam.squeeze().cpu().numpy()
@@ -66,5 +48,4 @@ def overlay_cam_on_image(pil_img, cam, alpha=0.4):
     heatmap = cv2.applyColorMap(np.uint8(255 * cam_resized), cv2.COLORMAP_JET)
     heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
     overlay = (1 - alpha) * img + alpha * heatmap
-    overlay = overlay.astype(np.uint8)
-    return overlay
+    return overlay.astype(np.uint8)
