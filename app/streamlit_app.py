@@ -20,7 +20,7 @@ from utils.gradcam import GradCAM, overlay_cam_on_image
 st.set_page_config(page_title="Pet Breed Classifier", layout="wide")
 
 BASE_DIR = os.path.dirname(__file__)
-MODEL_PATH = os.path.join(BASE_DIR, "model", "model_resnet18.pt")
+MODEL_PATH = os.path.join(BASE_DIR, "model", "model_mobilenetv2.pt")
 CLASS_PATH = os.path.join(BASE_DIR, "model", "class_names.json")
 
 st.title("寵物品種辨識 Demo（Transfer Learning / ResNet18）")
