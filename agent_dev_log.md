@@ -1,6 +1,4 @@
-# Agent 開發過程對話紀錄（節錄版，可直接繳交）
-
-> 目的：記錄「學生 × AI 助教」如何逐步完成：資料切分 → Transfer Learning 訓練 → 評估 → Streamlit 部署
+# Agent 開發過程對話紀錄
 
 ---
 
