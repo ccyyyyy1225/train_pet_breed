@@ -10,9 +10,9 @@ import streamlit as st
 from PIL import Image
 import torch
 
-from app.utils.modeling import load_torchscript_model
-from app.utils.preprocess import preprocess_image
-from app.utils.gradcam import GradCAM, overlay_cam_on_image
+from utils.modeling import load_torchscript_model
+from utils.preprocess import preprocess_image
+from utils.gradcam import GradCAM, overlay_cam_on_image
 
 # -------------------------
 # Page config
